@@ -1,0 +1,93 @@
+﻿version: '3.8'
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+    image: kubexis_proxy:latest
+    container_name: kubexis_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: kubexis_frontend
+    restart: unless-stopped
+    networks:
+      - app_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+  backend:
+    build:
+      context: ./backend
+    container_name: kubexis_backend
+    restart: unless-stopped
+    environment:
+      - PORT=5000
+    networks:
+      - app_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+
+  database:
+    image: postgres:16-alpine
+    container_name: kubexis_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASS:-SecurePassword123!}
+      POSTGRES_DB: ${DB_NAME:-production_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app_network
+
+  backup-service:
+    build:
+      context: ./backup
+    container_name: kubexis_backup
+    restart: "no"
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASS:-SecurePassword123!}
+      POSTGRES_DB: ${DB_NAME:-production_db}
+    volumes:
+      - backup_data:/backups
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+  backup_data:
+
+networks:
+  app_network:
+    driver: bridge

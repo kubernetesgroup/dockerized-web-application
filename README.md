@@ -8,14 +8,20 @@ Markdown
 
 An enterprise-ready, containerized microservice foundation designed for production deployments on VPS (AWS EC2, DigitalOcean, Hetzner, Linode).
 
-```mermaid
-graph TD
-    Client([Internet Traffic]) -->|Port 80| Nginx[Nginx Reverse Proxy]
-    Nginx -->|Route /| Frontend[SPA Frontend Container]
-    Nginx -->|Route /api/| Backend[Microservice API]
-    Backend -->|Internal Bridge| DB[(PostgreSQL 16 Database)]
-    BackupService[Automated Backup Cron] -.->|pg_dump| DB
-    BackupService -.->|Store 7-day archive| BackupVolume[(Backup Volume)]
+## Architecture Flow
+
+```text
+[Internet Traffic] --> (Port 80)
+       |
+       v
+[Nginx Reverse Proxy] (DDoS Rate Limiting + Security Headers)
+       |
+       +---> [Route /]     --> [SPA Frontend Container] (Alpine Nginx)
+       |
+       +---> [Route /api/] --> [Microservice API] (Non-Root Golang)
+                                    |
+                                    v
+                               [PostgreSQL 16 DB] <--- [Automated Backup Service] (Cron pg_dump)
 Key Deliverables & Features
 Edge Reverse Proxy: Nginx configured with DDoS rate limiting, Gzip compression, and strict security headers.
 Minimal Attack Surface: All microservices run using multi-stage builds and non-root users (UID 10001).
@@ -37,3 +43,5 @@ docker compose up backup-service
 Endpoints
 Web App UI: http://localhost/
 Healthcheck API: http://localhost/api/v1/health
+code
+Code
